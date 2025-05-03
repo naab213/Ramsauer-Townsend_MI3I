@@ -8,62 +8,63 @@ def init():
     return line,
 
 def animate(j):
-    line.set_data(o, final_density[j,:]) # Crée un graphique pour chaque densité sauvegardée
+    line.set_data(o, final_density[j,:]) #Crée un graphique pour chaque densité sauvegardée
     return line,
 
-dt=1E-7
-dx=0.001
-nx=int(1/dx)*2
-nt=90000  # En fonction du potentiel il faut modifier ce paramètre car sur certaines animations la particule atteint les bords
-n_frames=int(nt/1000)+1  # nombre d’images dans notre animation
-s=dt/(dx**2)
-v0=-4000
-e=5  # Valeur du rapport E/V0
-E=e*v0
-k=math.sqrt(2*abs(E))
+#j'ai modifiées les valeurs ici aussi
+dt = 1E-7
+dx = 0.002
+nx = int(1 / dx) * 2
+nt = 10000  En fonction du potentiel il faut modifier ce paramètre car sur certaines animations la particule atteint les bords
+n_frames = int(nt / 1000) + 1 #nombre d’image dans notre animation
+s = dt / (dx ** 2)
+v0 = -50
+e = 0.9 #Valeur du rapport E/V0
+E = e * abs(v0)
+k = math.sqrt(2 * E)
 
 x_array = np.linspace(0, (nx - 1) * dx, nx)
 V_potential = np.zeros(nx)
+V_potential[int(nx * 0.4):int(nx * 0.6)] = v0 #j'ai ajouté ça aussi
 
 #gaussian wave packet (Paquet d’ondes gaussien)
-xc=0.6
-sigma=0.05
-normalisation=1/(math.sqrt(sigma*math.sqrt(math.pi)))
+xc = 0.3
+sigma = 0.05
+normalisation = 1 / (math.sqrt(sigma * math.sqrt(math.pi)))
 wp_gauss = normalisation * np.exp(1j * k * x_array - ((x_array - xc) ** 2) / (2 * (sigma ** 2)))
+#wave packet Real part
+wp_re = np.zeros(nx)
+wp_re[:] = np.real(wp_gauss[:])
+#wave packet Imaginary part
+wp_im = np.zeros(nx)
+wp_im[:] = np.imag(wp_gauss[:])
 
-#wave packet Real part 
-wp_re=np.zeros(nx)
-wp_re[:]=np.real(wp_gauss[:])
-#wave packet Imaginary part 
-wp_im=np.zeros(nx)
-wp_im[:]=np.imag(wp_gauss[:])
+density = np.zeros((nt, nx))
+density[0, :] = np.absolute(wp_gauss[:]) ** 2
 
-density = np.zeros((nt,nx))
-density[0,:] = np.absolute(wp_gauss[:]) ** 2
+final_density = np.zeros((n_frames, nx))
 
-final_density =np.zeros((n_frames,nx))
-
-for t in range(1, nt):
-    laplacian = (np.roll(wp_gauss, -1) - 2*wp_gauss + np.roll(wp_gauss, 1)) / dx**2
+for t in range(1, nt): #j'ai ajouté ça pour le temps
+    laplacian = (np.roll(wp_gauss, -1) - 2 * wp_gauss + np.roll(wp_gauss, 1)) / dx ** 2
     wp_gauss = wp_gauss - 1j * dt * (-0.5 * laplacian + V_potential * wp_gauss)
-    density[t, :] = np.abs(wp_gauss)**2
+    density[t, :] = np.abs(wp_gauss) ** 2
 
     if t % 1000 == 0:
         final_density[t // 1000, :] = density[t, :]
 
-plot_title = "E/Vo="+str(e)
+plot_title = "E/Vo=" + str(e)
 
-fig = plt.figure() # initialise la figure principale
+fig = plt.figure() #initialise la figure principale
 line, = plt.plot([], [])
-plt.ylim(-1,1)
-plt.xlim(0,2)
-plt.plot(x_array,V_potential,label="Potentiel")
+plt.ylim(-1, 1)
+plt.xlim(0, 2)
+plt.plot(x_array, V_potential, label="Potentiel")
 plt.title(plot_title)
 plt.xlabel("x")
 plt.ylabel("Densité de probabilité de présence")
 #plt.legend() #Permet de faire apparaitre la légende
 
-o = x_array  # nécessaire pour animate()
+o = x_array #nécessaire pour animate() on en avait besoin pour qu'elle fonctionne
 
 ani = animation.FuncAnimation(fig, animate, init_func=init, frames=n_frames, blit=False, interval=100, repeat=False)
 #file_name = 'paquet_onde_e='+str(e)+'.mp4'
