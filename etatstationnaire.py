@@ -23,7 +23,7 @@ laplacian = diags([off_diag, main_diag, off_diag], [-1, 0, 1]) / dx**2
 H = (-0.5) * laplacian.toarray() + np.diag(V)
 
 num_states = 4
-energies, wavefuncs = eigh(H, eigvals=(0, num_states - 1))
+energies, wavefuncs = eigh(H, subset_by_index=(0, num_states - 1))
 
 # Normalisation
 wavefuncs_normalized = wavefuncs / np.sqrt(np.sum(wavefuncs**2, axis=0) * dx)
