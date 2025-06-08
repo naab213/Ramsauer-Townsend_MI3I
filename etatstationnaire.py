@@ -1,44 +1,67 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.sparse import diags
-from scipy.linalg import eigh
+from scipy.optimize import fsolve
 
-dx = 0.002
-nx = int(1 / dx) * 2  # 2000 points
-x = np.linspace(0, (nx - 1) * dx, nx)
+# Paramètres physiques
+hbar = 1
+m = 1
+V0 = 50    # Profondeur du puits (valeur positive)
+a = 1.0    # Demi-largeur du puits
 
-V0 = -4000
-x1, x2 = 0.8, 0.9
+#Équations transcendantales pour niveaux d'énergie liés
 
-V = np.zeros(nx)
-V[(x >= x1) & (x <= x2)] = V0
-V += abs(V0)
+def even_eq(E):
+    k = np.sqrt(2 * m * E) / hbar
+    kappa = np.sqrt(2 * m * (V0 - E)) / hbar
+    return k * np.tan(k * a) - kappa
 
-# Laplacien
-main_diag = np.full(nx, -2.0)
-off_diag = np.ones(nx - 1)
-laplacian = diags([off_diag, main_diag, off_diag], [-1, 0, 1]) / dx**2
+def odd_eq(E):
+    k = np.sqrt(2 * m * E) / hbar
+    kappa = np.sqrt(2 * m * (V0 - E)) / hbar
+    return -k / np.tan(k * a) - kappa
 
-# Hamiltonien H = -1/2 Δ + V(x)
-H = (-0.5) * laplacian.toarray() + np.diag(V)
+#Recherche des solutions (états liés) 
 
-num_states = 4
-energies, wavefuncs = eigh(H, subset_by_index=(0, num_states - 1))
+even_guesses = [1, 6, 12, 20]
+odd_guesses = [3, 9, 15]
 
-# Normalisation
-wavefuncs_normalized = wavefuncs / np.sqrt(np.sum(wavefuncs**2, axis=0) * dx)
+even_E = [fsolve(even_eq, guess)[0] for guess in even_guesses if 0 < fsolve(even_eq, guess)[0] < V0]
+odd_E = [fsolve(odd_eq, guess)[0] for guess in odd_guesses if 0 < fsolve(odd_eq, guess)[0] < V0]
+energies = sorted(even_E + odd_E)
 
-# Affichage
+#Construction des fonctions d'onde
+
+x = np.linspace(-2*a, 2*a, 1000)
+V = np.array([-V0 if abs(xi) < a else 0 for xi in x])
+psi_list = []
+
+for E in energies:
+    k = np.sqrt(2 * m * E) / hbar
+    kappa = np.sqrt(2 * m * (V0 - E)) / hbar
+
+    if E in even_E:
+        psi = np.where(np.abs(x) < a, np.cos(k * x), np.cos(k * a) * np.exp(-kappa * (np.abs(x) - a)))
+    else:
+        psi = np.where(np.abs(x) < a, np.sin(k * x), np.sign(x) * np.sin(k * a) * np.exp(-kappa * (np.abs(x) - a)))
+
+    psi /= np.max(np.abs(psi))  # Normalisation visuelle
+    psi_list.append(psi)
+
+#Tracé des courbes
+
 plt.figure(figsize=(10, 6))
-plt.plot(x, V / abs(V0), 'k-', label="Potentiel (normalisé)")
+plt.plot(x, V, 'k-', label='Puits de potentiel $V(x)$')
 
-for n in range(num_states):
-    psi = wavefuncs_normalized[:, n]
-    plt.plot(x, psi + energies[n] / abs(V0), label=f"État {n} (E = {energies[n]:.1f})")
+# Afficher uniquement les 3 premiers états
+for i, (E, psi) in enumerate(zip(energies[:3], psi_list[:3])):
+    plt.plot(x, psi + E, label=f"$\psi_{i+1}(x)$, E = {E:.2f}")
 
+plt.title("États stationnaires liés dans un puits de potentiel fini")
 plt.xlabel("x")
-plt.ylabel("Fonction d’onde + énergie")
-plt.title("États stationnaires dans le puits (potentiel décalé)")
-plt.grid(True)
+plt.ylabel("Énergie et fonction d’onde")
+plt.axhline(0, color='gray', linestyle='--')
+plt.ylim(-V0 - 5, max(energies[:3]) + 5)  # Ajuster l'échelle verticale
 plt.legend()
+plt.grid(True)
+plt.tight_layout()
 plt.show()
